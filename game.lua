@@ -9,6 +9,7 @@ function game.load()
   game.enemies = {}
   game.enemy_dt = 0
   game.enemy_rate = 2
+  game.enemy_bullets = {}
   -- player init
   game.player_size = imgs["player"]:getWidth()
   game.playerx = (160/2)*scale
@@ -57,6 +58,15 @@ function game.draw()
                          game.bullet_size/2,game.bullet_size/2)
     if debug then love.graphics.circle("line",v.x,v.y,game.bullet_size/2*scale) end
   end
+
+  -- Draw enemy bullets
+  for _,v in ipairs(game.enemy_bullets) do
+    love.graphics.draw(imgs["bullet"],
+                         v.x,v.y,
+                         0,scale,scale,
+                         game.bullet_size/2,game.bullet_size/2)
+    if debug then love.graphics.circle("line",v.x,v.y,game.bullet_size/2*scale) end
+  end
   
   -- Draw game info
   love.graphics.setColor(fontcolor.r,fontcolor.g,fontcolor.b)
@@ -92,19 +102,26 @@ function game.update(dt)
     local enemy = {}
     enemy.x = math.random((8)*scale,(160-8)*scale)
     enemy.y = -game.enemy_size
+    enemy.num_bullets = 1
     table.insert(game.enemies,enemy)
   end
   
   -- Update enemy
   for ei,ev in ipairs(game.enemies) do
     ev.y = ev.y + 70*dt*scale
+    if ev.y > 20*scale and ev.num_bullets == 1  then
+      local ebullet = {}
+      ebullet.x = ev.x
+      ebullet.y = ev.y
+      table.insert(game.enemy_bullets,ebullet)
+      ev.num_bullets = 0
+    end 
     if ev.y > 144*scale then
       table.remove(game.enemies,ei)
     end
     -- If a player gets too close to enemy
     if game.dist(game.playerx,game.playery,ev.x,ev.y) < (12+8)*scale then
       game.gameover_time = game.clock
-      print(game.clock)
       gameover.load()
       state = "gameover"
     end
@@ -150,6 +167,20 @@ function game.update(dt)
         table.remove(game.enemies,ei)
         table.remove(game.bullets,bi)
       end
+    end
+  end
+
+  -- Update enemy bullets
+  for bi,bv in ipairs(game.enemy_bullets) do
+    bv.y = bv.y + 100*dt*scale
+    if bv.y > 144*scale then
+      table.remove(game.enemy_bullets,bi)
+    end
+    -- see if enemy bullet hit player
+    if game.dist(game.playerx,game.playery,bv.x,bv.y) < (12+8)*scale then
+      game.gameover_time = game.clock
+      gameover.load()
+      state = "gameover"
     end
   end
   
