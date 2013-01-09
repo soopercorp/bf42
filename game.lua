@@ -4,12 +4,17 @@ function game.load()
   -- background init
   game.clock = 0
   game.gameover_time = 0
+  game.boss_dt = 0
+  game.boss_bullets = {}
   -- enemy init
   game.enemy_size = imgs["enemy"]:getWidth()
   game.enemies = {}
   game.enemy_dt = 0
   game.enemy_rate = 2
   game.enemy_bullets = {}
+  -- boss
+  game.num_bosses = 5
+  game.bosses = {}
   -- player init
   game.player_size = imgs["player"]:getWidth()
   game.playerx = (160/2)*scale
@@ -40,7 +45,18 @@ function game.draw()
                          v.x,v.y,
                          0,scale,scale,
                          game.enemy_size/2,game.enemy_size/2)
+    if debug then love.graphics.circle("line",v.x,v.y,(game.enemy_size/2)*scale) end
+  end
+
+  -- Draw bosses (just a triple enemy)
+  for i = -1,1 do
+    for _,v in ipairs(game.bosses) do
+      love.graphics.draw(imgs["enemy"],
+                           v.x+(game.enemy_size*i),v.y,
+                           0,scale,scale,
+                           game.enemy_size/2,game.enemy_size/2)
     if debug then love.graphics.circle("line",v.x,v.y,game.enemy_size/2*scale) end
+    end
   end
   -- Draw player
   love.graphics.draw(imgs["player"],
@@ -61,6 +77,15 @@ function game.draw()
 
   -- Draw enemy bullets
   for _,v in ipairs(game.enemy_bullets) do
+    love.graphics.draw(imgs["bullet"],
+                         v.x,v.y,
+                         0,scale,scale,
+                         game.bullet_size/2,game.bullet_size/2)
+    if debug then love.graphics.circle("line",v.x,v.y,game.bullet_size/2*scale) end
+  end
+
+  -- Draw boss bullets
+  for _,v in ipairs(game.boss_bullets) do
     love.graphics.draw(imgs["bullet"],
                          v.x,v.y,
                          0,scale,scale,
@@ -94,6 +119,8 @@ function game.update(dt)
   game.clock = game.clock + dt
   -- Update game.enemies
   game.enemy_dt = game.enemy_dt + dt
+  -- Update game.bosses
+  game.boss_dt = game.boss_dt + dt
   
   -- Enemy spawn
   if game.enemy_dt > game.enemy_rate then
@@ -105,21 +132,55 @@ function game.update(dt)
     enemy.num_bullets = 1
     table.insert(game.enemies,enemy)
   end
+
+  -- Boss spawn
+  if game.num_bosses > 0 and game.boss_dt > 5 then
+    local boss = {}
+    boss.x = math.random((24)*scale,(160-24)*scale)
+    boss.y = -game.enemy_size
+    boss.num_bullets = 1
+    table.insert(game.bosses,boss)
+    game.num_bosses = game.num_bosses - 1
+    game.boss_dt = 0
+  end
   
   -- Update enemy
   for ei,ev in ipairs(game.enemies) do
     ev.y = ev.y + 70*dt*scale
-    if ev.y > 20*scale and ev.num_bullets == 1  then
+    if ev.y > 20*scale and ev.num_bullets > 0  then
       local ebullet = {}
       ebullet.x = ev.x
       ebullet.y = ev.y
       table.insert(game.enemy_bullets,ebullet)
-      ev.num_bullets = 0
+      ev.num_bullets = ev.num_bullets - 1
     end 
     if ev.y > 144*scale then
       table.remove(game.enemies,ei)
     end
     -- If a player gets too close to enemy
+    if game.dist(game.playerx,game.playery,ev.x,ev.y) < (12+8)*scale then
+      game.gameover_time = game.clock
+      gameover.load()
+      state = "gameover"
+    end
+  end
+
+  -- Update boss
+  for ei,ev in ipairs(game.bosses) do
+    ev.y = ev.y + 70*dt*scale
+    if ev.y > 20*scale and ev.num_bullets > 0  then
+      for i=-1,1 do
+        local bbullet = {}
+        bbullet.x = ev.x+(i*game.enemy_size)
+        bbullet.y = ev.y
+        table.insert(game.boss_bullets,bbullet)
+      end      
+      ev.num_bullets = ev.num_bullets - 1
+    end 
+    if ev.y > 144*scale then
+      table.remove(game.bosses,ei)
+    end
+    -- If a player gets too close to boss
     if game.dist(game.playerx,game.playery,ev.x,ev.y) < (12+8)*scale then
       game.gameover_time = game.clock
       gameover.load()
@@ -168,6 +229,14 @@ function game.update(dt)
         table.remove(game.bullets,bi)
       end
     end
+    -- Update bullets with game.bosses
+    for ei,ev in ipairs(game.bosses) do
+      if game.dist(bv.x,bv.y,ev.x,ev.y) < (2+8)*scale then
+        game.score = game.score + 1
+        table.remove(game.bosses,ei)
+        table.remove(game.bullets,bi)
+      end
+    end
   end
 
   -- Update enemy bullets
@@ -178,6 +247,20 @@ function game.update(dt)
     end
     -- see if enemy bullet hit player
     if game.dist(game.playerx,game.playery,bv.x,bv.y) < (12+8)*scale then
+      game.gameover_time = game.clock
+      gameover.load()
+      state = "gameover"
+    end
+  end
+
+  -- Update boss bullets
+  for bi,bv in ipairs(game.boss_bullets) do
+    bv.y = bv.y + 120*dt*scale  -- faster bullets for bosses
+    if bv.y > 144*scale then
+      table.remove(game.boss_bullets,bi)
+    end
+    -- see if boss bullet hit player
+    if game.dist(game.playerx,game.playery,bv.x,bv.y) < (12)*scale then
       game.gameover_time = game.clock
       gameover.load()
       state = "gameover"
