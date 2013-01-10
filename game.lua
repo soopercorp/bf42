@@ -25,6 +25,11 @@ function game.load()
   game.recharge_rate = 1
   game.bullet_size = imgs["bullet"]:getWidth()
   game.bullets = {}
+  -- powerups init
+  game.num_powerups = 2
+  game.powerup_dt = 0
+  game.powerups = {}
+  game.player_has_powerup = false
   -- info init
   game.score = 0
 end
@@ -63,8 +68,11 @@ function game.draw()
                        game.playerx,game.playery,
                        0,scale,scale,
                        game.player_size/2,game.player_size/2)
-  if debug then 
+  if debug then love.graphics.circle("line",game.playerx,game.playery,game.player_size/2*scale) end
+  if game.player_has_powerup then
+    love.graphics.setColor(255,0,0)
     love.graphics.circle("line",game.playerx,game.playery,game.player_size/2*scale)
+    love.graphics.setColor(255,255,255)
   end
   -- Draw game.bullets
   for _,v in ipairs(game.bullets) do
@@ -91,6 +99,13 @@ function game.draw()
                          0,scale,scale,
                          game.bullet_size/2,game.bullet_size/2)
     if debug then love.graphics.circle("line",v.x,v.y,game.bullet_size/2*scale) end
+  end
+
+  -- Draw powerups
+  for _,v in ipairs(game.powerups) do
+    love.graphics.setColor(0,0,0)
+    love.graphics.circle("fill",v.x,v.y,game.bullet_size/2*scale)
+    love.graphics.setColor(255,255,255)
   end
   
   -- Draw game info
@@ -121,6 +136,8 @@ function game.update(dt)
   game.enemy_dt = game.enemy_dt + dt
   -- Update game.bosses
   game.boss_dt = game.boss_dt + dt
+  -- Update powerups
+  game.powerup_dt = game.powerup_dt + dt
   
   -- Enemy spawn
   if game.enemy_dt > game.enemy_rate then
@@ -159,9 +176,14 @@ function game.update(dt)
     end
     -- If a player gets too close to enemy
     if game.dist(game.playerx,game.playery,ev.x,ev.y) < (12+8)*scale then
-      game.gameover_time = game.clock
-      gameover.load()
-      state = "gameover"
+      if game.player_has_powerup then
+        game.player_has_powerup = false
+        table.remove(game.enemies,ei)
+      else
+        game.gameover_time = game.clock
+        gameover.load()
+        state = "gameover"
+      end
     end
   end
 
@@ -182,11 +204,40 @@ function game.update(dt)
     end
     -- If a player gets too close to boss
     if game.dist(game.playerx,game.playery,ev.x,ev.y) < (12+8)*scale then
-      game.gameover_time = game.clock
-      gameover.load()
-      state = "gameover"
+      if game.player_has_powerup then
+        game.player_has_powerup = false
+        table.remove(game.bosses,ei)
+      else
+        game.gameover_time = game.clock
+
+        gameover.load()
+        state = "gameover"
+      end
     end
   end
+
+  -- Spawn powerups
+  if game.num_powerups > 0 and game.powerup_dt > 10 and not game.player_has_powerup then
+    local powerup = {}
+    powerup.x = math.random((24)*scale,(160-24)*scale)
+    powerup.y = -game.enemy_size
+    table.insert(game.powerups,powerup)
+    game.num_powerups = game.num_powerups - 1
+    game.powerup_dt = 0
+  end
+
+  -- Update powerups
+  for ei,ev in ipairs(game.powerups) do
+    ev.y = ev.y + 70*dt*scale
+    if ev.y > 144*scale then
+      table.remove(game.powerups,ei)
+    end
+    -- If a player gets too close to powerup
+    if game.dist(game.playerx,game.playery,ev.x,ev.y) < (12+8)*scale then
+      game.player_has_powerup = true
+      table.remove(game.powerups,ei)
+    end
+  end  
   
   -- Update player movement
   if love.keyboard.isDown("right") then
@@ -232,7 +283,7 @@ function game.update(dt)
     -- Update bullets with game.bosses
     for ei,ev in ipairs(game.bosses) do
       if game.dist(bv.x,bv.y,ev.x,ev.y) < (2+8)*scale then
-        game.score = game.score + 1
+        game.score = game.score + 3 -- extra points for boss
         table.remove(game.bosses,ei)
         table.remove(game.bullets,bi)
       end
@@ -247,9 +298,14 @@ function game.update(dt)
     end
     -- see if enemy bullet hit player
     if game.dist(game.playerx,game.playery,bv.x,bv.y) < (12+8)*scale then
-      game.gameover_time = game.clock
-      gameover.load()
-      state = "gameover"
+      if game.player_has_powerup then
+        game.player_has_powerup = false
+        table.remove(game.enemy_bullets,bi)
+      else
+        game.gameover_time = game.clock
+        gameover.load()
+        state = "gameover"
+      end
     end
   end
 
@@ -261,9 +317,14 @@ function game.update(dt)
     end
     -- see if boss bullet hit player
     if game.dist(game.playerx,game.playery,bv.x,bv.y) < (12)*scale then
-      game.gameover_time = game.clock
-      gameover.load()
-      state = "gameover"
+      if game.player_has_powerup then
+        game.player_has_powerup = false
+        table.remove(game.boss_bullets,bi)
+      else
+        game.gameover_time = game.clock
+        gameover.load()
+        state = "gameover"
+      end
     end
   end
   
