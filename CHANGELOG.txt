@@ -3,4 +3,5 @@ This changelog documents changes from the original tutorial.
 - Added a gameover screen
 - Added a boss (just a triple enemy).
 - Added ability for enemies (including bosses) to shoot bullets.
-- Added a powerup which adds a shield for the player, and protects player from one collision with a bullet or enemy.
+- Added a powerup shield which adds a shield for the player, and protects player from one collision with a bullet or enemy.
+- Added a triple bullet powerup(tbp) - player shoots 3 bullets

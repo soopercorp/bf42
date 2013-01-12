@@ -25,11 +25,16 @@ function game.load()
   game.recharge_rate = 1
   game.bullet_size = imgs["bullet"]:getWidth()
   game.bullets = {}
-  -- powerups init
-  game.num_powerups = 2
-  game.powerup_dt = 0
-  game.powerups = {}
-  game.player_has_powerup = false
+  -- shields init
+  game.num_shields = 2
+  game.shield_dt = 0
+  game.shields = {}
+  game.player_has_shield = false
+  -- triple bullet powerup (tbp)
+  game.num_tbps = 2
+  game.tbp_dt = 0
+  game.tbps = {}
+  game.player_has_tbp = false
   -- info init
   game.score = 0
 end
@@ -69,9 +74,11 @@ function game.draw()
                        0,scale,scale,
                        game.player_size/2,game.player_size/2)
   if debug then love.graphics.circle("line",game.playerx,game.playery,game.player_size/2*scale) end
-  if game.player_has_powerup then
+  if game.player_has_shield then
     love.graphics.setColor(255,0,0)
-    love.graphics.circle("line",game.playerx,game.playery,game.player_size/2*scale)
+    for i=0,1 do
+      love.graphics.circle("line",game.playerx,game.playery,(game.player_size/2 + i)*scale)
+    end
     love.graphics.setColor(255,255,255)
   end
   -- Draw game.bullets
@@ -101,9 +108,16 @@ function game.draw()
     if debug then love.graphics.circle("line",v.x,v.y,game.bullet_size/2*scale) end
   end
 
-  -- Draw powerups
-  for _,v in ipairs(game.powerups) do
+  -- Draw shields
+  for _,v in ipairs(game.shields) do
     love.graphics.setColor(0,0,0)
+    love.graphics.circle("fill",v.x,v.y,game.bullet_size/2*scale)
+    love.graphics.setColor(255,255,255)
+  end
+
+  -- Draw tbps
+  for _,v in ipairs(game.tbps) do
+    love.graphics.setColor(255,255,255)
     love.graphics.circle("fill",v.x,v.y,game.bullet_size/2*scale)
     love.graphics.setColor(255,255,255)
   end
@@ -136,8 +150,10 @@ function game.update(dt)
   game.enemy_dt = game.enemy_dt + dt
   -- Update game.bosses
   game.boss_dt = game.boss_dt + dt
-  -- Update powerups
-  game.powerup_dt = game.powerup_dt + dt
+  -- Update shields
+  game.shield_dt = game.shield_dt + dt
+  -- Update tbps
+  game.tbp_dt = game.tbp_dt + dt
   
   -- Enemy spawn
   if game.enemy_dt > game.enemy_rate then
@@ -151,7 +167,7 @@ function game.update(dt)
   end
 
   -- Boss spawn
-  if game.num_bosses > 0 and game.boss_dt > 5 then
+  if game.boss_dt > 5 then
     local boss = {}
     boss.x = math.random((24)*scale,(160-24)*scale)
     boss.y = -game.enemy_size
@@ -176,8 +192,8 @@ function game.update(dt)
     end
     -- If a player gets too close to enemy
     if game.dist(game.playerx,game.playery,ev.x,ev.y) < (12+8)*scale then
-      if game.player_has_powerup then
-        game.player_has_powerup = false
+      if game.player_has_shield then
+        game.player_has_shield = false
         table.remove(game.enemies,ei)
       else
         game.gameover_time = game.clock
@@ -204,8 +220,8 @@ function game.update(dt)
     end
     -- If a player gets too close to boss
     if game.dist(game.playerx,game.playery,ev.x,ev.y) < (12+8)*scale then
-      if game.player_has_powerup then
-        game.player_has_powerup = false
+      if game.player_has_shield then
+        game.player_has_shield = false
         table.remove(game.bosses,ei)
       else
         game.gameover_time = game.clock
@@ -216,26 +232,49 @@ function game.update(dt)
     end
   end
 
-  -- Spawn powerups
-  if game.num_powerups > 0 and game.powerup_dt > 10 and not game.player_has_powerup then
-    local powerup = {}
-    powerup.x = math.random((24)*scale,(160-24)*scale)
-    powerup.y = -game.enemy_size
-    table.insert(game.powerups,powerup)
-    game.num_powerups = game.num_powerups - 1
-    game.powerup_dt = 0
+  -- Spawn shields
+  if game.num_shields > 0 and game.shield_dt > 10 and not game.player_has_shield then
+    local shield = {}
+    shield.x = math.random((24)*scale,(160-24)*scale)
+    shield.y = -game.enemy_size
+    table.insert(game.shields,shield)
+    game.num_shields = game.num_shields - 1
+    game.shield_dt = 0
   end
 
-  -- Update powerups
-  for ei,ev in ipairs(game.powerups) do
+  -- Update shields
+  for ei,ev in ipairs(game.shields) do
     ev.y = ev.y + 70*dt*scale
     if ev.y > 144*scale then
-      table.remove(game.powerups,ei)
+      table.remove(game.shields,ei)
     end
-    -- If a player gets too close to powerup
+    -- If a player gets too close to shield
     if game.dist(game.playerx,game.playery,ev.x,ev.y) < (12+8)*scale then
-      game.player_has_powerup = true
-      table.remove(game.powerups,ei)
+      game.player_has_shield = true
+      table.remove(game.shields,ei)
+    end
+  end  
+
+  -- Spawn tbps
+  if game.num_tbps > 0 and game.tbp_dt > 15 and not game.player_has_tbp then
+    local tbp = {}
+    tbp.x = math.random((24)*scale,(160-24)*scale)
+    tbp.y = -game.enemy_size
+    table.insert(game.tbps,tbp)
+    game.num_tbps = game.num_tbps - 1
+    game.tbp_dt = 0
+  end
+
+  -- Update tbps
+  for ei,ev in ipairs(game.tbps) do
+    ev.y = ev.y + 70*dt*scale
+    if ev.y > 144*scale then
+      table.remove(game.tbps,ei)
+    end
+    -- If a player gets too close to tbp
+    if game.dist(game.playerx,game.playery,ev.x,ev.y) < (12+8)*scale then
+      game.player_has_tbp = true
+      table.remove(game.tbps,ei)
     end
   end  
   
@@ -268,6 +307,9 @@ function game.update(dt)
   
   -- Update bullets
   for bi,bv in ipairs(game.bullets) do
+    if game.player_has_tbp then
+      bv.x = bv.x + 40*dt*bv.tbp_id
+    end
     bv.y = bv.y - 100*dt*scale
     if bv.y < 0 then
       table.remove(game.bullets,bi)
@@ -298,8 +340,8 @@ function game.update(dt)
     end
     -- see if enemy bullet hit player
     if game.dist(game.playerx,game.playery,bv.x,bv.y) < (12+8)*scale then
-      if game.player_has_powerup then
-        game.player_has_powerup = false
+      if game.player_has_shield then
+        game.player_has_shield = false
         table.remove(game.enemy_bullets,bi)
       else
         game.gameover_time = game.clock
@@ -317,8 +359,8 @@ function game.update(dt)
     end
     -- see if boss bullet hit player
     if game.dist(game.playerx,game.playery,bv.x,bv.y) < (12)*scale then
-      if game.player_has_powerup then
-        game.player_has_powerup = false
+      if game.player_has_shield then
+        game.player_has_shield = false
         table.remove(game.boss_bullets,bi)
       else
         game.gameover_time = game.clock
@@ -344,9 +386,19 @@ function game.keypressed(key)
   if key == " " and game.ammo > 0 then
     love.audio.play(shoot)
     game.ammo = game.ammo - 1
-    local bullet = {}
-    bullet.x = game.playerx
-    bullet.y = game.playery
-    table.insert(game.bullets,bullet)
+    if game.player_has_tbp then
+      for i=-1,1 do
+        local bullet = {}
+        bullet.x = game.playerx
+        bullet.y = game.playery
+        bullet.tbp_id = i
+        table.insert(game.bullets,bullet)
+      end
+    else
+      local bullet = {}
+      bullet.x = game.playerx
+      bullet.y = game.playery
+      table.insert(game.bullets,bullet)
+    end
   end
 end
